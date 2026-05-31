@@ -1,56 +1,59 @@
 // ============================================================
-// Maltese Gear Cube — Move Animations
-// R2, L2, U2, D2, F2, B2
+// Move animation engine for the Gear Cube viewer
 // ============================================================
 
-const MOVE_DEFS = {
-  R2: { face: 'R', axis: new THREE.Vector3(1, 0, 0) },
-  L2: { face: 'L', axis: new THREE.Vector3(-1, 0, 0) },
-  U2: { face: 'U', axis: new THREE.Vector3(0, 1, 0) },
-  D2: { face: 'D', axis: new THREE.Vector3(0, -1, 0) },
-  F2: { face: 'F', axis: new THREE.Vector3(0, 0, 1) },
-  B2: { face: 'B', axis: new THREE.Vector3(0, 0, -1) }
-};
+export async function playMoveSequence(sequence, faceGroups) {
+  for (const move of sequence) {
+    await animateMove(move, faceGroups);
+  }
+}
 
-function animateMove(move, faceGroups, duration = 250) {
+// ------------------------------------------------------------
+// Animate a single 180° face turn
+// ------------------------------------------------------------
+
+function animateMove(move, faceGroups) {
   return new Promise(resolve => {
-    const def = MOVE_DEFS[move];
-    if (!def) {
+    const face = move[0];
+    const group = faceGroups[face];
+
+    if (!group) {
+      console.warn("Unknown face:", face);
       resolve();
       return;
     }
 
-    const group = faceGroups[def.face];
-    const axis = def.axis.clone().normalize();
-
+    const duration = 300; // ms
     const start = performance.now();
-    const totalAngle = Math.PI; // 180°
+    const startRot = group.rotation.clone();
 
-    function step(now) {
-      const t = Math.min(1, (now - start) / duration);
-      const eased = t * t * (3 - 2 * t); // smoothstep
-      const angle = eased * totalAngle;
+    function frame(now) {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = easeInOutQuad(t);
 
-      // Reset rotation then apply angle
-      group.rotation.set(0, 0, 0);
-      group.rotateOnAxis(axis, angle);
+      // 180° turn
+      const target = Math.PI;
+
+      group.rotation.z = startRot.z + target * eased;
 
       if (t < 1) {
-        requestAnimationFrame(step);
+        requestAnimationFrame(frame);
       } else {
-        // Snap to exact 180° at end
-        group.rotation.set(0, 0, 0);
-        group.rotateOnAxis(axis, totalAngle);
+        group.rotation.z = startRot.z + target;
         resolve();
       }
     }
 
-    requestAnimationFrame(step);
+    requestAnimationFrame(frame);
   });
 }
 
-async function playMoveSequence(moves, faceGroups) {
-  for (const m of moves) {
-    await animateMove(m, faceGroups);
-  }
+// ------------------------------------------------------------
+// Easing function
+// ------------------------------------------------------------
+
+function easeInOutQuad(t) {
+  return t < 0.5
+    ? 2 * t * t
+    : 1 - Math.pow(-2 * t + 2, 2) / 2;
 }

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Maltese Gear Cube — WebGL Viewer</title>
+
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #111;
+    }
+    #ui {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 10;
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      padding: 8px 14px;
+      background: #222;
+      border: 1px solid #555;
+      color: #eee;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="ui">
+    <button id="scrambleBtn">Scramble</button>
+    <button id="solveBtn">Solve</button>
+  </div>
+
+  <canvas id="cubeCanvas"></canvas>
+
+  <!-- Load Three.js as ES module -->
+  <script type="module">
+    import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+    window.THREE = THREE;
+  </script>
+
+  <!-- Load your viewer -->
+  <script type="module" src="./cube_3d_v2.js"></script>
+</body>
+</html>
