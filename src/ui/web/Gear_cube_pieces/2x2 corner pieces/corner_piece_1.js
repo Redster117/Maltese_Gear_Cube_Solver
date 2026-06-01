@@ -331,12 +331,12 @@ function createCornerBlock(signX, signY, signZ) {
   const toothSpecs = [
     { matrix: createToothMatrix(0, 0, 90, 0, 0.70, 0.85), color: 0xff0000 },
     { matrix: createToothMatrix(0, 0, 90, 0, 0.40, 0.85), color: 0xff7f00, width: skinnyToothWidth },
-    { matrix: createToothMatrix(90, 90, 180, 0.8, 0, 0), color: 0xff7f00, width: skinnyToothWidth },
+    { matrix: createToothMatrix(90, 90, 180, 0.85, 0, 0), color: 0xff7ff00, width: skinnyToothWidth },
     { matrix: createToothMatrix(90, 90, 180, 0.8, 0.70, 0), color: 0xff0000 },
     { matrix: createToothMatrix(0, 0, 180, 0.7, 0, 0.8), color: 0xff0000 },
     { matrix: createToothMatrix(0, 0, 180, 0.35, 0, 0.8), color: 0xff7f00, width: skinnyToothWidth },
     { matrix: createToothMatrix(0, 90, 180, 0.8, 0, 0.7), color: 0xff0000 },
-    { matrix: createToothMatrix(0, 90, 180, 0.72, 0, 0), color: 0xff7f00, width: skinnyToothWidth }
+    { matrix: createToothMatrix(0, 90, 180, 0.85, 0, 0), color: 0xff7f00, width: skinnyToothWidth }
   ];
 
   toothSpecs.forEach((spec) => {
