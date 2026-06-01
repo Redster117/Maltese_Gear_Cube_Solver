@@ -131,7 +131,7 @@ const FACE_COLORS = {
   F: 0x00ff00, // green
   B: 0x0000ff, // blue
   R: 0xff0000, // red
-  L: 0xff8000  // orange
+  L: 0x8000FF  // purple
 };
 
 // ------------------------------------------------------------
@@ -300,7 +300,7 @@ function createRoundedSticker(color) {
 // ------------------------------------------------------------
 
 function buildGearFace(faceKey, normal, up, group) {
-  const center = normal.clone().multiplyScalar(1.5);
+  const center = normal.clone().multiplyScalar(1.75);
 
   // Base circular plate
   const plateGeom = new THREE.CircleGeometry(1.1, 64);
@@ -348,8 +348,57 @@ function buildCube() {
   placeCornerBlocks(scene);
 
   // --- Add edge blocks ---
-  placeEdgeBlocks(scene);}
+  placeEdgeBlocks(scene);
+}
 buildCube();
+
+// ------------------------------------------------------------
+// Corner face panel helper
+// ------------------------------------------------------------
+function createCornerFacePanel(color) {
+  const width = 0.66;
+  const height = 0.66;
+
+  const shape = new THREE.Shape();
+  shape.moveTo(0, height / 2);
+  shape.quadraticCurveTo(width / 2, height / 2, width / 2, 0);
+  shape.quadraticCurveTo(width / 2, -height / 2, 0, -height / 2);
+  shape.quadraticCurveTo(-width / 2, -height / 2, -width / 2, 0);
+  shape.quadraticCurveTo(-width / 2, height / 2, 0, height / 2);
+
+  const geom = new THREE.ExtrudeGeometry(shape, {
+    depth: 0.03,
+    bevelEnabled: false
+  });
+
+  const mat = new THREE.MeshPhongMaterial({ color, shininess: 20 });
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.position.z = 0.015;
+  return mesh;
+}
+
+// ------------------------------------------------------------
+// Single triangular tooth helper
+// ------------------------------------------------------------
+function createTriangularToothGeometry(baseWidth, height, depth) {
+  const shape = new THREE.Shape();
+  shape.moveTo(-baseWidth / 2, 0);
+  shape.lineTo(baseWidth / 2, 0);
+  shape.lineTo(0, height);
+  shape.closePath();
+
+  return new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: false
+  });
+}
+
+// ------------------------------------------------------------
+// Rotation helper for explicit XYZ Euler angles
+// ------------------------------------------------------------
+function setMeshRotation(mesh, x = 0, y = 0, z = 0) {
+  mesh.rotation.set(x, y, z);
+}
 
 // ------------------------------------------------------------
 // Corner Block (hollow inward-facing corner shell)
@@ -372,16 +421,32 @@ function createCornerBlock(signX, signY, signZ) {
   const wallYGeom = new THREE.BoxGeometry(outer, wallThickness, outer);
 
   const wallZ = new THREE.Mesh(wallZGeom, material);
-  wallZ.position.set(-outer / 2, -outer / 2, -wallThickness / 2);
+  wallZ.position.set(outer / 2, outer / 2, wallThickness / 2);
   group.add(wallZ);
 
   const wallX = new THREE.Mesh(wallXGeom, material);
-  wallX.position.set(-wallThickness / 2, -outer / 2, -outer / 2);
+  wallX.position.set(wallThickness / 2, outer / 2, outer / 2);
   group.add(wallX);
 
   const wallY = new THREE.Mesh(wallYGeom, material);
-  wallY.position.set(-outer / 2, -wallThickness / 2, -outer / 2);
+  wallY.position.set(outer / 2, wallThickness / 2, outer / 2);
   group.add(wallY);
+
+  const teethMaterial = new THREE.MeshPhongMaterial({
+    color: 0x444444,
+    shininess: 40,
+    side: THREE.DoubleSide
+  });
+
+  const toothDepth = 0.1;
+  const toothWidth = 0.5;
+  const toothHeight = 0.5;
+
+  const toothGeom = createTriangularToothGeometry(toothWidth, toothHeight, toothDepth);
+  const tooth = new THREE.Mesh(toothGeom, teethMaterial);
+  setMeshRotation(tooth, Math.PI / 4, Math.PI / 4, Math.PI / 4);
+  tooth.position.set(-0.18, -0.18, -0.10);
+  group.add(tooth);
 
   group.scale.set(signX, signY, signZ);
 
@@ -403,7 +468,7 @@ function placeCornerBlocks(scene) {
     [-1, -1, -1]
   ];
 
-  const distance = 1.75; // Option C face distance
+  const distance = 1; // Option C face distance
 
   offsets.forEach(([x, y, z]) => {
     const corner = createCornerBlock(x, y, z);

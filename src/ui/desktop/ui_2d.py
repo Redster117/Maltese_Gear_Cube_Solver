@@ -19,14 +19,14 @@ FACE_COLORS = {
     "F": "green",
     "B": "blue",
     "R": "red",
-    "L": "orange"
+    "L": "purple"
 }
 
 # ------------------------------------------------------------
 # Sticker layout for a 2D cube net
 # ------------------------------------------------------------
 
-# Each face is a 3×3 grid of stickers
+# Each face is a 2×2 grid of stickers
 # We draw them in a standard unfolded net layout
 
 FACE_POSITIONS = {
@@ -69,8 +69,8 @@ class CubeUI:
     def draw_face(self, face, colors):
         fx, fy = FACE_POSITIONS[face]
 
-        for i in range(3):
-            for j in range(3):
+        for i in range(2):
+            for j in range(2):
                 x = (fx + j) * STICKER_SIZE
                 y = (fy + i) * STICKER_SIZE
                 self.canvas.create_rectangle(
