@@ -1,4 +1,3 @@
-console.log("LOADING THE CORRECT cube_3d.js");
 // ============================================================
 // Maltese Gear Cube Viewer — Three.js (ES Module Version)
 // ============================================================
@@ -27,6 +26,90 @@ camera.lookAt(0, 0, 0);
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
+
+const orbitTarget = new THREE.Vector3(0, 0, 0);
+const spherical = new THREE.Spherical();
+spherical.setFromVector3(camera.position.clone().sub(orbitTarget));
+
+const minDistance = 2.0;
+const maxDistance = 12.0;
+const rotateSpeed = 0.005;
+const zoomSpeed = 1;
+const panSpeed = 1;
+
+let isPointerDown = false;
+let pointerMode = null;
+const pointerStart = new THREE.Vector2();
+let startTheta = spherical.theta;
+let startPhi = spherical.phi;
+const startTarget = new THREE.Vector3();
+
+function updateCamera() {
+  spherical.makeSafe();
+  spherical.radius = Math.max(minDistance, Math.min(maxDistance, spherical.radius));
+  const offset = new THREE.Vector3().setFromSpherical(spherical);
+  camera.position.copy(orbitTarget).add(offset);
+  camera.lookAt(orbitTarget);
+}
+
+function getPanVectors() {
+  camera.updateMatrixWorld();
+  const cameraDirection = new THREE.Vector3();
+  camera.getWorldDirection(cameraDirection);
+  const cameraRight = new THREE.Vector3().crossVectors(cameraDirection, camera.up).normalize();
+  const cameraUp = camera.up.clone().normalize();
+  return { cameraRight, cameraUp };
+}
+
+canvas.addEventListener("pointerdown", (event) => {
+  const isPan = event.button === 1 || (event.button === 0 && event.ctrlKey);
+  const isRotate = event.button === 0 && !event.ctrlKey;
+  if (!isPan && !isRotate) return;
+
+  isPointerDown = true;
+  pointerMode = isPan ? "pan" : "rotate";
+  pointerStart.set(event.clientX, event.clientY);
+  startTheta = spherical.theta;
+  startPhi = spherical.phi;
+  startTarget.copy(orbitTarget);
+  canvas.setPointerCapture(event.pointerId);
+});
+
+window.addEventListener("pointermove", (event) => {
+  if (!isPointerDown) return;
+
+  const deltaX = event.clientX - pointerStart.x;
+  const deltaY = event.clientY - pointerStart.y;
+
+  if (pointerMode === "rotate") {
+    spherical.theta = startTheta - deltaX * rotateSpeed;
+    spherical.phi = Math.min(Math.PI - 0.1, Math.max(0.1, startPhi - deltaY * rotateSpeed));
+    updateCamera();
+    return;
+  }
+
+  const { cameraRight, cameraUp } = getPanVectors();
+  const panOffset = new THREE.Vector3()
+    .addScaledVector(cameraRight, -deltaX * panSpeed * spherical.radius)
+    .addScaledVector(cameraUp, -deltaY * panSpeed * spherical.radius);
+
+  orbitTarget.copy(startTarget).add(panOffset);
+  updateCamera();
+});
+
+window.addEventListener("pointerup", (event) => {
+  if (event.pointerId != null) canvas.releasePointerCapture(event.pointerId);
+  isPointerDown = false;
+  pointerMode = null;
+});
+
+canvas.addEventListener("wheel", (event) => {
+  event.preventDefault();
+  spherical.radius = Math.max(minDistance, Math.min(maxDistance, spherical.radius + event.deltaY * 0.01 * zoomSpeed));
+  updateCamera();
+}, { passive: false });
+
+canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
 // ------------------------------------------------------------
 // Lighting
@@ -77,38 +160,138 @@ scene.add(
 // Gear Geometry Helpers
 // ------------------------------------------------------------
 
-// 4‑lobe gear “flower” shape
-function createGearLobeShape() {
+// ------------------------------------------------------------
+// 12‑Tooth Slightly‑Rounded Gear Shape (Option A rounding)
+// ------------------------------------------------------------
+function createGearToothShape() {
   const shape = new THREE.Shape();
-  const radius = 0.9;
-  const lobes = 4;
 
-  for (let i = 0; i < lobes; i++) {
-    const angle = (i / lobes) * Math.PI * 2;
-    const x = Math.cos(angle) * radius;
-    const y = Math.sin(angle) * radius;
+  const teeth = 12;
+  const toothOut = 1.05 + 0.18; // outward tooth radius
+  const toothIn  = 1.05 - 0.10; // valley radius
+  const roundness = 0.22;       // slight rounding at tips
 
-    if (i === 0) shape.moveTo(x, y);
-    else shape.lineTo(x, y);
+  for (let i = 0; i < teeth; i++) {
+    const angle = (i / teeth) * Math.PI * 2;
+    const nextAngle = ((i + 1) / teeth) * Math.PI * 2;
+
+    // Tooth tip (slightly rounded)
+    const midAngle = angle + (nextAngle - angle) * 0.5;
+    const tipX = Math.cos(midAngle) * toothOut;
+    const tipY = Math.sin(midAngle) * toothOut;
+
+    // Valley between teeth
+    const valleyX = Math.cos(nextAngle) * toothIn;
+    const valleyY = Math.sin(nextAngle) * toothIn;
+
+    if (i === 0) {
+      shape.moveTo(tipX, tipY);
+    } else {
+      shape.quadraticCurveTo(
+        Math.cos(angle) * (toothOut + roundness),
+        Math.sin(angle) * (toothOut + roundness),
+        tipX,
+        tipY
+      );
+    }
+
+    // Smooth inward curve to valley
+    shape.quadraticCurveTo(
+      Math.cos(midAngle) * (toothIn - roundness),
+      Math.sin(midAngle) * (toothIn - roundness),
+      valleyX,
+      valleyY
+    );
   }
 
   shape.closePath();
   return shape;
 }
 
-// Sticker arc
-function createStickerArc(color) {
+// ------------------------------------------------------------
+// Raised Gear Ring (extruded 12‑tooth rounded gear)
+// ------------------------------------------------------------
+function createGearRing() {
+  const toothShape = createGearToothShape();
+
+  const extrude = new THREE.ExtrudeGeometry(toothShape, {
+    depth: 0.22,        // raised ring height
+    bevelEnabled: false
+  });
+
+  const mat = new THREE.MeshPhongMaterial({
+    color: 0x000000,
+    shininess: 40
+  });
+
+  const ring = new THREE.Mesh(extrude, mat);
+  ring.position.z = 0.11; // sits above the face
+  ring.visible = false;
+  return ring;
+}
+
+// ------------------------------------------------------------
+// Center Hub (recessed disc + small cap)
+// ------------------------------------------------------------
+function createCenterHub() {
+  const group = new THREE.Group();
+
+  // Recessed disc
+  const discGeom = new THREE.CylinderGeometry(0.55, 0.55, 0.18, 48);
+  const discMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
+  const disc = new THREE.Mesh(discGeom, discMat);
+  disc.position.z = -0.09; // slightly recessed
+  group.add(disc);
+
+  // Center cap
+  const capGeom = new THREE.CylinderGeometry(0.25, 0.25, 0.05, 32);
+  const capMat = new THREE.MeshPhongMaterial({ color: 0x222222 });
+  const cap = new THREE.Mesh(capGeom, capMat);
+  cap.position.z = 0.02;
+  group.add(cap);
+
+  group.visible = false;
+  return group;
+}
+
+// ------------------------------------------------------------
+// Rounded Rectangular Sticker (Option B)
+// ------------------------------------------------------------
+function createRoundedSticker(color) {
+  const width = 0.85;
+  const height = 0.55;
+  const radius = 0.18;
+
   const shape = new THREE.Shape();
-  shape.absarc(0, 0, 0.75, 0, Math.PI * 2);
+
+  // Start at top-left corner
+  shape.moveTo(-width/2 + radius, height/2);
+
+  // Top edge
+  shape.lineTo(width/2 - radius, height/2);
+  shape.quadraticCurveTo(width/2, height/2, width/2, height/2 - radius);
+
+  // Right edge
+  shape.lineTo(width/2, -height/2 + radius);
+  shape.quadraticCurveTo(width/2, -height/2, width/2 - radius, -height/2);
+
+  // Bottom edge
+  shape.lineTo(-width/2 + radius, -height/2);
+  shape.quadraticCurveTo(-width/2, -height/2, -width/2, -height/2 + radius);
+
+  // Left edge
+  shape.lineTo(-width/2, height/2 - radius);
+  shape.quadraticCurveTo(-width/2, height/2, -width/2 + radius, height/2);
 
   const geom = new THREE.ExtrudeGeometry(shape, {
-    depth: 0.05,
+    depth: 0.03,
     bevelEnabled: false
   });
 
   const mat = new THREE.MeshPhongMaterial({ color });
   const mesh = new THREE.Mesh(geom, mat);
-  mesh.position.z = 0.1;
+  mesh.position.z = 0.25; // sits above gear ring
+
   return mesh;
 }
 
@@ -117,7 +300,6 @@ function createStickerArc(color) {
 // ------------------------------------------------------------
 
 function buildGearFace(faceKey, normal, up, group) {
-  const right = new THREE.Vector3().crossVectors(normal, up).normalize();
   const center = normal.clone().multiplyScalar(1.5);
 
   // Base circular plate
@@ -126,54 +308,212 @@ function buildGearFace(faceKey, normal, up, group) {
   const plate = new THREE.Mesh(plateGeom, plateMat);
   plate.position.copy(center);
   plate.lookAt(center.clone().add(normal));
+  plate.visible = false;
   group.add(plate);
 
-  // Gear lobe shape
-  const lobeShape = createGearLobeShape();
-  const lobeGeom = new THREE.ExtrudeGeometry(lobeShape, {
-    depth: 0.15,
-    bevelEnabled: false
-  });
-  const lobeMat = new THREE.MeshPhongMaterial({ color: 0x000000 });
+  // Gear ring
+  const ring = createGearRing();
+  ring.position.copy(center);
+  ring.lookAt(center.clone().add(normal));
+  group.add(ring);
 
-  const lobe = new THREE.Mesh(lobeGeom, lobeMat);
-  lobe.position.copy(center);
-  lobe.lookAt(center.clone().add(normal));
-  group.add(lobe);
+  // Center hub
+  const hub = createCenterHub();
+  hub.position.copy(center);
+  hub.lookAt(center.clone().add(normal));
+  group.add(hub);
 
-  // Sticker arc
-  const sticker = createStickerArc(FACE_COLORS[faceKey]);
+  // Rounded sticker
+  const sticker = createRoundedSticker(FACE_COLORS[faceKey]);
   sticker.position.copy(center);
   sticker.lookAt(center.clone().add(normal));
+  sticker.visible = false;
   group.add(sticker);
 }
 
 // ------------------------------------------------------------
-// Build the full cube
+// Build a full Maltese Gear Cube face
 // ------------------------------------------------------------
-
 function buildCube() {
-  buildGearFace("U", new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1), faceGroups.U);
-  buildGearFace("D", new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 0, 1), faceGroups.D);
-  buildGearFace("F", new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0), faceGroups.F);
-  buildGearFace("B", new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 1, 0), faceGroups.B);
-  buildGearFace("R", new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), faceGroups.R);
-  buildGearFace("L", new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0), faceGroups.L);
+
+  // --- Build all 6 gear faces ---
+  buildGearFace("U", new THREE.Vector3(0, 1, 0),  new THREE.Vector3(0, 0, -1), faceGroups.U);
+  buildGearFace("D", new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 0, 1),  faceGroups.D);
+  buildGearFace("F", new THREE.Vector3(0, 0, 1),  new THREE.Vector3(0, 1, 0),  faceGroups.F);
+  buildGearFace("B", new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 1, 0),  faceGroups.B);
+  buildGearFace("R", new THREE.Vector3(1, 0, 0),  new THREE.Vector3(0, 1, 0),  faceGroups.R);
+  buildGearFace("L", new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0),  faceGroups.L);
+
+  // --- Add corner blocks ---
+  placeCornerBlocks(scene);
+
+  // --- Add edge blocks ---
+  placeEdgeBlocks(scene);}
+buildCube();
+
+// ------------------------------------------------------------
+// Corner Block (hollow inward-facing corner shell)
+// ------------------------------------------------------------
+function createCornerBlock(signX, signY, signZ) {
+  const group = new THREE.Group();
+
+  const outer = 0.9; // outer side length
+  const depth = 0.55; // wall height
+  const wallThickness = 0.18;
+
+  const material = new THREE.MeshPhongMaterial({
+    color: 0xffffff,
+    shininess: 30,
+    side: THREE.DoubleSide
+  });
+
+  const wallZGeom = new THREE.BoxGeometry(outer, outer, wallThickness);
+  const wallXGeom = new THREE.BoxGeometry(wallThickness, outer, outer);
+  const wallYGeom = new THREE.BoxGeometry(outer, wallThickness, outer);
+
+  const wallZ = new THREE.Mesh(wallZGeom, material);
+  wallZ.position.set(-outer / 2, -outer / 2, -wallThickness / 2);
+  group.add(wallZ);
+
+  const wallX = new THREE.Mesh(wallXGeom, material);
+  wallX.position.set(-wallThickness / 2, -outer / 2, -outer / 2);
+  group.add(wallX);
+
+  const wallY = new THREE.Mesh(wallYGeom, material);
+  wallY.position.set(-outer / 2, -wallThickness / 2, -outer / 2);
+  group.add(wallY);
+
+  group.scale.set(signX, signY, signZ);
+
+  return group;
 }
 
-buildCube();
+// ------------------------------------------------------------
+// Place all 8 corner blocks
+// ------------------------------------------------------------
+function placeCornerBlocks(scene) {
+  const offsets = [
+    [ 1,  1,  1],
+    [ 1,  1, -1],
+    [ 1, -1,  1],
+    [ 1, -1, -1],
+    [-1,  1,  1],
+    [-1,  1, -1],
+    [-1, -1,  1],
+    [-1, -1, -1]
+  ];
+
+  const distance = 1.75; // Option C face distance
+
+  offsets.forEach(([x, y, z]) => {
+    const corner = createCornerBlock(x, y, z);
+    corner.position.set(
+      x * distance,
+      y * distance,
+      z * distance
+    );
+    scene.add(corner);
+  });
+}
+
+// ------------------------------------------------------------
+// Edge Block (rounded rectangular prism)
+// ------------------------------------------------------------
+function createEdgeBlock() {
+  const group = new THREE.Group();
+
+  const width = 0.45;   // X dimension
+  const height = 0.25;  // Y dimension
+  const depth = 0.90;   // Z dimension (long axis)
+  const radius = 0.10;  // rounding
+
+  const shape = new THREE.Shape();
+
+  // Start top-left corner
+  shape.moveTo(-width/2 + radius, height/2);
+
+  // Top edge
+  shape.lineTo(width/2 - radius, height/2);
+  shape.quadraticCurveTo(width/2, height/2, width/2, height/2 - radius);
+
+  // Right edge
+  shape.lineTo(width/2, -height/2 + radius);
+  shape.quadraticCurveTo(width/2, -height/2, width/2 - radius, -height/2);
+
+  // Bottom edge
+  shape.lineTo(-width/2 + radius, -height/2);
+  shape.quadraticCurveTo(-width/2, -height/2, -width/2, -height/2 + radius);
+
+  // Left edge
+  shape.lineTo(-width/2, height/2 - radius);
+  shape.quadraticCurveTo(-width/2, height/2, -width/2 + radius, height/2);
+
+  const extrude = new THREE.ExtrudeGeometry(shape, {
+    depth: depth,
+    bevelEnabled: false
+  });
+
+  const mat = new THREE.MeshPhongMaterial({
+    color: 0x1a1a1a,
+    shininess: 30
+  });
+
+  const prism = new THREE.Mesh(extrude, mat);
+
+  // Center the prism
+  prism.position.z = -depth / 2;
+
+  group.add(prism);
+  return group;
+}
+
+// ------------------------------------------------------------
+// Place all 12 edge blocks
+// ------------------------------------------------------------
+function placeEdgeBlocks(scene) {
+  const distance = 1.75; // Option C face distance
+
+  // Midpoints of cube edges
+  const positions = [
+    [ 1,  1,  0],
+    [ 1, -1,  0],
+    [-1,  1,  0],
+    [-1, -1,  0],
+
+    [ 1,  0,  1],
+    [ 1,  0, -1],
+    [-1,  0,  1],
+    [-1,  0, -1],
+
+    [ 0,  1,  1],
+    [ 0,  1, -1],
+    [ 0, -1,  1],
+    [ 0, -1, -1]
+  ];
+
+  positions.forEach(([x, y, z]) => {
+    const edge = createEdgeBlock();
+
+    // Position at midpoint
+    edge.position.set(
+      x * distance,
+      y * distance,
+      z * distance
+    );
+
+    // Orient the block so its long axis points outward
+    edge.lookAt(0, 0, 0);
+
+    scene.add(edge);
+  });
+}
 
 // ------------------------------------------------------------
 // Animation Loop
 // ------------------------------------------------------------
 
-let autoRotY = 0;
-
 function animate() {
   requestAnimationFrame(animate);
-
-  autoRotY += 0.002;
-  scene.rotation.y = autoRotY;
 
   renderer.render(scene, camera);
 }
