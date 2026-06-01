@@ -400,6 +400,18 @@ function setMeshRotation(mesh, x = 0, y = 0, z = 0) {
   mesh.rotation.set(x, y, z);
 }
 
+function createToothMatrix(xDeg = 0, yDeg = 0, zDeg = 0, x = 0, y = 0, z = 0) {
+  // xDeg/yDeg/zDeg are rotation angles in degrees around X, Y, Z axes.
+  // x/y/z are the translation offsets applied after rotation.
+  return new THREE.Matrix4()
+    .makeRotationFromEuler(new THREE.Euler(
+      THREE.MathUtils.degToRad(xDeg),
+      THREE.MathUtils.degToRad(yDeg),
+      THREE.MathUtils.degToRad(zDeg)
+    ))
+    .setPosition(x, y, z);
+}
+
 // ------------------------------------------------------------
 // Simple geometry merge helper for same-attribute geometries
 // ------------------------------------------------------------
@@ -523,15 +535,23 @@ function createCornerBlock(signX, signY, signZ) {
   const toothHeight = 0.43;
   const toothGeom = createTriangularToothGeometry(toothWidth, toothHeight, toothDepth);
 
-  const toothMatrix = new THREE.Matrix4()
-    .makeRotationFromEuler(new THREE.Euler(0, 0, 180 * Math.PI / 360))
-    .setPosition(0, 0.70, 0.8);
+  const toothMatrix = createToothMatrix(0, 0, 90, 0, 0.70, 0.8);
   addGeometry(toothGeom, toothMatrix, 1, geoms);
 
-  const tooth2Matrix = new THREE.Matrix4()
-    .makeRotationFromEuler(new THREE.Euler(0, 0, 180 * Math.PI / 360))
-    .setPosition(0, 0.176666666, 0.8);
+  const tooth2Matrix = createToothMatrix(0, 0, 90, 0, 0.176666666, 0.8);
   addGeometry(toothGeom, tooth2Matrix, 1, geoms);
+
+  const tooth3Matrix = createToothMatrix(90, 90, 180, 0.8, 0.176666666, 0);
+  addGeometry(toothGeom, tooth3Matrix, 1, geoms);
+
+  const tooth4Matrix = createToothMatrix(90, 90, 180, 0.8, 0.70, 0);
+  addGeometry(toothGeom, tooth4Matrix, 1, geoms);
+
+  const tooth5Matrix = createToothMatrix(0, 0, 180, 0.7, 0, 0.8);
+  addGeometry(toothGeom, tooth5Matrix, 1, geoms);
+
+  const tooth6Matrix = createToothMatrix(0, 0, 180, 0.2, 0, 0.8);
+  addGeometry(toothGeom, tooth6Matrix, 1, geoms);
 
   const mergedShell = mergeSimpleGeometries(geoms, true);
   const shell = new THREE.Mesh(mergedShell, [shellMaterial, teethMaterial]);
@@ -557,7 +577,7 @@ function placeCornerBlocks(scene) {
     [-1, -1, -1]
   ];
 
-  const distance = 1; // Option C face distance
+  const distance = 0.5; // Option C face distance
 
   offsets.forEach(([x, y, z]) => {
     const corner = createCornerBlock(x, y, z);
