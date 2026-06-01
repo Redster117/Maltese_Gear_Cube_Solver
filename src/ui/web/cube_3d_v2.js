@@ -401,6 +401,85 @@ function setMeshRotation(mesh, x = 0, y = 0, z = 0) {
 }
 
 // ------------------------------------------------------------
+// Simple geometry merge helper for same-attribute geometries
+// ------------------------------------------------------------
+function concatFloat32Arrays(arrays) {
+  let length = 0;
+  arrays.forEach((arr) => { length += arr.length; });
+  const result = new Float32Array(length);
+  let offset = 0;
+  arrays.forEach((arr) => {
+    result.set(arr, offset);
+    offset += arr.length;
+  });
+  return result;
+}
+
+function mergeSimpleGeometries(geometries, useGroups = false) {
+  const hasIndexed = geometries.some((g) => g.index !== null);
+  const hasNonIndexed = geometries.some((g) => g.index === null);
+  const mergedGeometry = new THREE.BufferGeometry();
+
+  const positionArrays = [];
+  const normalArrays = [];
+  const indexArrays = [];
+  const groups = [];
+
+  let vertexOffset = 0;
+  let indexOffset = 0;
+
+  for (let idx = 0; idx < geometries.length; idx += 1) {
+    const geometry = geometries[idx];
+    let geom = geometry.clone();
+
+    if (hasIndexed && hasNonIndexed && geom.index !== null) {
+      geom = geom.toNonIndexed();
+    }
+
+    if (geom.index === null) {
+      const count = geom.attributes.position.count;
+      const indices = [];
+      for (let i = 0; i < count; i += 3) {
+        indices.push(i, i + 1, i + 2);
+      }
+      geom.setIndex(indices);
+    }
+
+    if (!geom.attributes.normal) {
+      geom.computeVertexNormals();
+    }
+
+    if (!geom.attributes.position || !geom.attributes.normal) {
+      console.error('mergeSimpleGeometries failed with geometry at index ' + idx + '. Missing required position or normal attributes.');
+      return null;
+    }
+
+    positionArrays.push(geom.attributes.position.array);
+    normalArrays.push(geom.attributes.normal.array);
+
+    const indexArray = geom.index.array;
+    for (let i = 0; i < indexArray.length; i += 1) {
+      indexArrays.push(indexArray[i] + vertexOffset);
+    }
+
+    if (useGroups) {
+      const materialIndex = geom.groups[0] ? geom.groups[0].materialIndex : 0;
+      groups.push({ start: indexOffset, count: indexArray.length, materialIndex });
+    }
+
+    vertexOffset += geom.attributes.position.count;
+    indexOffset += indexArray.length;
+  }
+
+  mergedGeometry.setAttribute('position', new THREE.Float32BufferAttribute(concatFloat32Arrays(positionArrays), 3));
+  mergedGeometry.setAttribute('normal', new THREE.Float32BufferAttribute(concatFloat32Arrays(normalArrays), 3));
+  mergedGeometry.setIndex(indexArrays);
+  if (useGroups) mergedGeometry.groups = groups;
+
+  return mergedGeometry;
+}
+
+// ------------------------------------------------------------
 // Corner Block (hollow inward-facing corner shell)
 // ------------------------------------------------------------
 function createCornerBlock(signX, signY, signZ) {
@@ -408,29 +487,13 @@ function createCornerBlock(signX, signY, signZ) {
 
   const outer = 0.9; // outer side length
   const depth = 0.55; // wall height
-  const wallThickness = 0.18;
+  const wallThickness = 0.10;
 
-  const material = new THREE.MeshPhongMaterial({
+  const shellMaterial = new THREE.MeshPhongMaterial({
     color: 0xffffff,
     shininess: 30,
     side: THREE.DoubleSide
   });
-
-  const wallZGeom = new THREE.BoxGeometry(outer, outer, wallThickness);
-  const wallXGeom = new THREE.BoxGeometry(wallThickness, outer, outer);
-  const wallYGeom = new THREE.BoxGeometry(outer, wallThickness, outer);
-
-  const wallZ = new THREE.Mesh(wallZGeom, material);
-  wallZ.position.set(outer / 2, outer / 2, wallThickness / 2);
-  group.add(wallZ);
-
-  const wallX = new THREE.Mesh(wallXGeom, material);
-  wallX.position.set(wallThickness / 2, outer / 2, outer / 2);
-  group.add(wallX);
-
-  const wallY = new THREE.Mesh(wallYGeom, material);
-  wallY.position.set(outer / 2, wallThickness / 2, outer / 2);
-  group.add(wallY);
 
   const teethMaterial = new THREE.MeshPhongMaterial({
     color: 0x444444,
@@ -438,15 +501,41 @@ function createCornerBlock(signX, signY, signZ) {
     side: THREE.DoubleSide
   });
 
-  const toothDepth = 0.1;
-  const toothWidth = 0.5;
-  const toothHeight = 0.5;
+  const wallZGeom = new THREE.BoxGeometry(outer, outer, wallThickness);
+  const wallXGeom = new THREE.BoxGeometry(wallThickness, outer, outer);
+  const wallYGeom = new THREE.BoxGeometry(outer, wallThickness, outer);
 
+  const addGeometry = (geometry, matrix, materialIndex, targetArray) => {
+    const geom = geometry.clone();
+    geom.applyMatrix4(matrix);
+    const count = geom.index ? geom.index.count : geom.attributes.position.count;
+    geom.groups = [{ start: 0, count, materialIndex }];
+    targetArray.push(geom);
+  };
+
+  const geoms = [];
+  addGeometry(wallZGeom, new THREE.Matrix4().makeTranslation(outer / 2, outer / 2, wallThickness / 2), 0, geoms);
+  addGeometry(wallXGeom, new THREE.Matrix4().makeTranslation(wallThickness / 2, outer / 2, outer / 2), 0, geoms);
+  addGeometry(wallYGeom, new THREE.Matrix4().makeTranslation(outer / 2, wallThickness / 2, outer / 2), 0, geoms);
+
+  const toothDepth = 0.1;
+  const toothWidth = 0.35;
+  const toothHeight = 0.43;
   const toothGeom = createTriangularToothGeometry(toothWidth, toothHeight, toothDepth);
-  const tooth = new THREE.Mesh(toothGeom, teethMaterial);
-  setMeshRotation(tooth, Math.PI / 4, Math.PI / 4, Math.PI / 4);
-  tooth.position.set(-0.18, -0.18, -0.10);
-  group.add(tooth);
+
+  const toothMatrix = new THREE.Matrix4()
+    .makeRotationFromEuler(new THREE.Euler(0, 0, 180 * Math.PI / 360))
+    .setPosition(0, 0.70, 0.8);
+  addGeometry(toothGeom, toothMatrix, 1, geoms);
+
+  const tooth2Matrix = new THREE.Matrix4()
+    .makeRotationFromEuler(new THREE.Euler(0, 0, 180 * Math.PI / 360))
+    .setPosition(0, 0.176666666, 0.8);
+  addGeometry(toothGeom, tooth2Matrix, 1, geoms);
+
+  const mergedShell = mergeSimpleGeometries(geoms, true);
+  const shell = new THREE.Mesh(mergedShell, [shellMaterial, teethMaterial]);
+  group.add(shell);
 
   group.scale.set(signX, signY, signZ);
 
