@@ -12,6 +12,7 @@ Maltese_Gear_Cube_Solver/
 │   │   │
 │   │   ├── desktop/             # (optional) Tkinter / PyOpenGL
 │   │   │   └── ui_2d.py
+│   │   │       # Requires system Tk support (e.g. python3-tk on Debian/Ubuntu)
 │   │   │
 │   │   ├── web/                 # ⭐ NEW: Three.js WebGL viewer
 │   │   │   ├── cube_3d.html     # Main webpage

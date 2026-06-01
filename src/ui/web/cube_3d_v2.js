@@ -57,22 +57,23 @@ function getPanVectors() {
   const cameraDirection = new THREE.Vector3();
   camera.getWorldDirection(cameraDirection);
   const cameraRight = new THREE.Vector3().crossVectors(cameraDirection, camera.up).normalize();
-  const cameraUp = camera.up.clone().normalize();
+  const cameraUp = new THREE.Vector3().crossVectors(cameraRight, cameraDirection).normalize();
   return { cameraRight, cameraUp };
 }
 
 canvas.addEventListener("pointerdown", (event) => {
-  const isPan = event.button === 1 || (event.button === 0 && event.ctrlKey);
+  const isPan = event.button === 1 || event.button === 2 || (event.button === 0 && event.ctrlKey);
   const isRotate = event.button === 0 && !event.ctrlKey;
   if (!isPan && !isRotate) return;
 
+  event.preventDefault();
   isPointerDown = true;
   pointerMode = isPan ? "pan" : "rotate";
   pointerStart.set(event.clientX, event.clientY);
   startTheta = spherical.theta;
   startPhi = spherical.phi;
   startTarget.copy(orbitTarget);
-  canvas.setPointerCapture(event.pointerId);
+  if (event.pointerId != null) canvas.setPointerCapture(event.pointerId);
 });
 
 window.addEventListener("pointermove", (event) => {
@@ -88,10 +89,12 @@ window.addEventListener("pointermove", (event) => {
     return;
   }
 
+  event.preventDefault();
   const { cameraRight, cameraUp } = getPanVectors();
+  const panScale = panSpeed * spherical.radius * 0.0015;
   const panOffset = new THREE.Vector3()
-    .addScaledVector(cameraRight, -deltaX * panSpeed * spherical.radius)
-    .addScaledVector(cameraUp, -deltaY * panSpeed * spherical.radius);
+    .addScaledVector(cameraRight, -deltaX * panScale)
+    .addScaledVector(cameraUp, deltaY * panScale);
 
   orbitTarget.copy(startTarget).add(panOffset);
   updateCamera();
