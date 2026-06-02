@@ -115,7 +115,7 @@ function createFlowerPetalShape(length, width) {
 
   shape.moveTo(0, -halfLength);
   shape.bezierCurveTo(halfWidth * 0.35, -halfLength * 0.75, halfWidth * 1.0, -halfLength * 0.25, halfWidth, 0);
-  shape.quadraticCurveTo(halfWidth * 0.9, halfLength * 0.55, 0, halfLength);
+  shape.quadraticCurveTo(halfWidth * 0.9, halfLength * 1.5, 0, halfLength);
   shape.quadraticCurveTo(-halfWidth * 0.9, halfLength * 0.55, -halfWidth, 0);
   shape.bezierCurveTo(-halfWidth * 1.0, -halfLength * 0.25, -halfWidth * 0.35, -halfLength * 0.75, 0, -halfLength);
 
@@ -145,13 +145,13 @@ function createFlowerGear() {
     group.add(petal);
   }
 
-  const hub = new THREE.Mesh(new THREE.CylinderGeometry(centerRadius, centerRadius, petalDepth, 48), hubMat);
-  hub.rotation.x = -Math.PI / 2;
-  group.add(hub);
+  //const hub = new THREE.Mesh(new THREE.CylinderGeometry(centerRadius, centerRadius, petalDepth, 10), hubMat);
+  //hub.rotation.x = -Math.PI / 2;
+  //group.add(hub);
 
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(centerRadius + 0.05, 0.04, 16, 64), rimMat);
-  rim.rotation.x = Math.PI / 2;
-  group.add(rim);
+  //const rim = new THREE.Mesh(new THREE.TorusGeometry(centerRadius + 0.05, 0.04, 16, 64), rimMat);
+  //rim.rotation.x = Math.PI / 2;
+  //group.add(rim);
 
   return group;
 }
@@ -161,7 +161,6 @@ scene.add(flowerGear);
 
 function animate() {
   requestAnimationFrame(animate);
-  flowerGear.rotation.y += 0.002;
   renderer.render(scene, camera);
 }
 
