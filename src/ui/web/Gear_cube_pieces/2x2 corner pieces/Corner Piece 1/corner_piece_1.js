@@ -19,7 +19,7 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   100
 );
-camera.position.set(4, 4, 4);
+camera.position.set(4, 2, -4);
 camera.lookAt(0, 0, 0);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -30,7 +30,7 @@ const orbitTarget = new THREE.Vector3(0, 0, 0);
 const spherical = new THREE.Spherical();
 spherical.setFromVector3(camera.position.clone().sub(orbitTarget));
 
-const minDistance = 2.0;
+const minDistance = 0.1;
 const maxDistance = 24.0;
 const rotateSpeed = 0.005;
 const zoomSpeed = 1;
@@ -140,7 +140,7 @@ placeCornerBlocks(scene);
 // Single triangular tooth helper
 // ------------------------------------------------------------
 function createTriangularToothGeometry(baseWidth, height, depth) {
-  const cornerRadius = Math.min(baseWidth, height) * 0.21;
+  const cornerRadius = Math.min(baseWidth, height) * 0.25;
   const halfWidth = baseWidth / 2.5;
   const apexY = height;
   const shape = new THREE.Shape();
@@ -323,20 +323,24 @@ function createCornerBlock(signX, signY, signZ) {
   const shell = new THREE.Mesh(mergedShell, shellMaterial);
   group.add(shell);
 
-  const toothDepth = 0.1;
-  const baseToothWidth = 0.35;
-  const skinnyToothWidth = 0.20;
-  const toothHeight = 0.40;
+  const toothDepth = 0.03;
+  const baseToothWidth = 0.36;
+  const skinnyToothWidth = 0.26;
+  const toothHeight = 0.38;
 
   const toothSpecs = [
-    { matrix: createToothMatrix(0, 0, 90, 0, 0.70, 0.85), color: 0xff0000 },
-    { matrix: createToothMatrix(0, 0, 90, 0, 0.40, 0.85), color: 0xff7f00, width: skinnyToothWidth },
-    { matrix: createToothMatrix(90, 90, 180, 0.85, 0, 0), color: 0xff7ff00, width: skinnyToothWidth },
-    { matrix: createToothMatrix(90, 90, 180, 0.8, 0.70, 0), color: 0xff0000 },
-    { matrix: createToothMatrix(0, 0, 180, 0.7, 0, 0.8), color: 0xff0000 },
-    { matrix: createToothMatrix(0, 0, 180, 0.35, 0, 0.8), color: 0xff7f00, width: skinnyToothWidth },
-    { matrix: createToothMatrix(0, 90, 180, 0.8, 0, 0.7), color: 0xff0000 },
-    { matrix: createToothMatrix(0, 90, 180, 0.85, 0, 0), color: 0xff7f00, width: skinnyToothWidth }
+    { matrix: createToothMatrix(0, 0, 90, 0, 0.62, 0.885), color: 0xff0000 },
+    { matrix: createToothMatrix(0, 0, 90, 0, 0, 0.885), color: 0xff0000, width: skinnyToothWidth },
+    { matrix: createToothMatrix(90, 90, 180, 0.885, 0, 0), color: 0xff0000, width: skinnyToothWidth },
+    { matrix: createToothMatrix(90, 90, 180, 0.885, 0.62, 0), color: 0xff0000 },
+    { matrix: createToothMatrix(0, 0, 180, 0.62, 0, 0.885), color: 0xff0000 },
+    { matrix: createToothMatrix(0, 0, 180, 0, 0, 0.885), color: 0xff0000, width: skinnyToothWidth },
+    { matrix: createToothMatrix(0, 90, 180, 0.885, 0, 0.62), color: 0xff0000 },
+    { matrix: createToothMatrix(0, 90, 180, 0.885, 0, 0), color: 0xff0000, width: skinnyToothWidth },
+    { matrix: createToothMatrix(90, 0, 180, 0.62, 0.885, 0), color: 0xff0000 },
+    { matrix: createToothMatrix(90, 0, 180, 0, 0.885, 0), color: 0xff0000, width: skinnyToothWidth },
+    { matrix: createToothMatrix(90, 0, 90, 0, 0.885, 0), color: 0xff0000, width: skinnyToothWidth },
+    { matrix: createToothMatrix(90, 0, 90, 0, 0.885, 0.62), color: 0xff0000}
   ];
 
   toothSpecs.forEach((spec) => {

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Flower Gear 3D test — WebGL Viewer</title>
+
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #111;
+    }
+    #ui {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 10;
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      padding: 8px 14px;
+      background: #222;
+      border: 1px solid #555;
+      color: #eee;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+  <canvas id="cubeCanvas"></canvas>
+
+  <!-- Load your viewer -->
+  <script type="module" src="./flower_gear.js"></script>
+</body>
+</html>
