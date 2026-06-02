@@ -112,12 +112,16 @@ function createFlowerPetalShape(length, width) {
   const shape = new THREE.Shape();
   const halfLength = length * 0.5;
   const halfWidth = width * 0.5;
+  const inset = halfWidth * 0.22;
+  const bulb = halfWidth * 0.9;
 
   shape.moveTo(0, -halfLength);
-  shape.bezierCurveTo(halfWidth * 0.35, -halfLength * 0.75, halfWidth * 1.0, -halfLength * 0.25, halfWidth, 0);
-  shape.quadraticCurveTo(halfWidth * 0.9, halfLength * 1.5, 0, halfLength);
-  shape.quadraticCurveTo(-halfWidth * 0.9, halfLength * 0.55, -halfWidth, 0);
-  shape.bezierCurveTo(-halfWidth * 1.0, -halfLength * 0.25, -halfWidth * 0.35, -halfLength * 0.75, 0, -halfLength);
+  shape.bezierCurveTo(inset, -halfLength * 0.8, bulb, -halfLength * 0.4, halfWidth, -halfLength * 0.05);
+  shape.quadraticCurveTo(halfWidth * 0.9, halfLength * 0.22, halfWidth * 0.62, halfLength * 0.55);
+  shape.quadraticCurveTo(halfWidth * 0.35, halfLength * 0.85, 0, halfLength);
+  shape.quadraticCurveTo(-halfWidth * 0.35, halfLength * 0.85, -halfWidth * 0.62, halfLength * 0.55);
+  shape.quadraticCurveTo(-halfWidth * 0.9, halfLength * 0.22, -halfWidth, -halfLength * 0.05);
+  shape.bezierCurveTo(-bulb, -halfLength * 0.4, -inset, -halfLength * 0.8, 0, -halfLength);
 
   return shape;
 }
